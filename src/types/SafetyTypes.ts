@@ -1,5 +1,3 @@
-import type { DriverMetrics } from '../driverSignals';
-
 export enum WarningLevel {
   NORMAL = 'NORMAL',
   MILD = 'MILD',

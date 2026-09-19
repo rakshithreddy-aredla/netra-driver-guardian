@@ -193,9 +193,9 @@ export const TripSummary: React.FC<TripSummaryProps> = ({
         <View style={styles.divider} />
 
         <Text style={styles.infractionTitle}>Infractions:</Text>
-        {Object.entries(infractions).map(([type, count]) => (
-          <View key={type} style={styles.infractionRow}>
-            <Text style={styles.infractionType}>{type.replace('_', ' ')}:</Text>
+        {Object.entries(infractions).map(([type, count], index) => (
+          <View key={`${type}-${index}`} style={styles.infractionRow}>
+            <Text style={styles.infractionType}>{type.replace(/_/g, ' ')}:</Text>
             <Text style={styles.infractionCount}>{count}</Text>
           </View>
         ))}

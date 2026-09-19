@@ -189,15 +189,15 @@ export class AlarmManager {
     if (this.isStrobing) return;
     this.isStrobing = true;
 
-    let isOn = false;
-    this.strobeInterval = setInterval(async () => {
-      isOn = !isOn;
-      try {
-        if (Platform.OS === 'android') {
-        }
-      } catch {
+    let strobeCount = 0;
+    const maxStrobes = 20;
+    this.strobeInterval = setInterval(() => {
+      strobeCount++;
+      if (strobeCount >= maxStrobes) {
+        this.stopAllAlarms();
+        return;
       }
-    }, 100);
+    }, 150);
   }
 
   async stopAllAlarms(): Promise<void> {

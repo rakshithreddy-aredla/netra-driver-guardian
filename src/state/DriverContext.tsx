@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useReducer, useCallback, useRef, useEffect } from 'react';
 import { SafetyEngine, safetyEngine } from '../safety/SafetyEngine';
 import { getAlarmManager } from '../alarm/AlarmManager';
-import type { SafetyState, Infraction } from '../types/SafetyTypes';
-import { DEFAULT_CONFIG, WarningLevel, DetectionType } from '../types/SafetyTypes';
+import type { DriverMetrics } from '../driverSignals';
+import type { SafetyState, Infraction, WarningLevel, DetectionType } from '../types/SafetyTypes';
+import { DEFAULT_CONFIG } from '../types/SafetyTypes';
 
 type DriverAction =
   | { type: 'START_TRIP' }
@@ -81,7 +82,7 @@ type DriverContextType = {
   state: SafetyState;
   startTrip: () => void;
   stopTrip: () => void;
-  processDetection: (metrics: import('../driverSignals').DriverMetrics) => void;
+  processDetection: (metrics: DriverMetrics) => void;
   getTripDuration: () => number;
   getInfractionSummary: () => Record<DetectionType, number>;
 };
@@ -104,7 +105,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     dispatch({ type: 'STOP_TRIP' });
   }, []);
 
-  const processDetection = useCallback((metrics: import('../driverSignals').DriverMetrics) => {
+  const processDetection = useCallback((metrics: DriverMetrics) => {
     const now = Date.now();
     if (now - lastProcessTimeRef.current < 100) return;
     lastProcessTimeRef.current = now;
