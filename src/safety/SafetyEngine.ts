@@ -1,6 +1,6 @@
 import type { DriverMetrics } from '../driverSignals';
 import type { SafetyEngineConfig, SafetyEngineResult, WarningLevel, DetectionType } from '../types/SafetyTypes';
-import { DEFAULT_CONFIG, WarningLevel, DetectionType } from '../types/SafetyTypes';
+import { DEFAULT_CONFIG } from '../types/SafetyTypes';
 
 interface TrackingState {
   eyeClosedStartTime: number | null;

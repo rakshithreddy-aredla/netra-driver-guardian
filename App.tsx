@@ -5,31 +5,45 @@ import {
   Text,
   TouchableOpacity,
   Dimensions,
-  Alert,
-  Platform,
   Linking,
 } from 'react-native';
-import { CameraView, useCameraPermissions, FaceDetector } from 'expo-camera';
-import * as FaceDetection from '@infinitered/react-native-mlkit-face-detection';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { DriverProvider, useDriver } from './src/state/DriverContext';
 import { SafetyDashboard, TripSummary } from './src/components/Dashboard';
-import { extractDriverMetrics } from './src/driverSignals';
 import { DetectionType } from './src/types/SafetyTypes';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Audio } from 'expo-av';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+let demoInterval: ReturnType<typeof setInterval> | null = null;
+
+const generateDemoMetrics = () => {
+  const eyeOpen = 0.2 + Math.random() * 0.8;
+  const mouthOpen = Math.random() > 0.95 ? 0.4 + Math.random() * 0.4 : 0.05 + Math.random() * 0.15;
+  const headTurn = Math.random() > 0.9 ? 15 + Math.random() * 30 : Math.random() * 10;
+  
+  return {
+    faceDetected: true,
+    eyeOpenness: eyeOpen,
+    mouthOpenness: mouthOpen,
+    headTurn: headTurn,
+    headPitch: Math.random() * 5,
+    headRoll: Math.random() * 5,
+    faceCenterX: 0.5,
+    faceCenterY: 0.4,
+    faceSizeRatio: 0.6,
+  };
+};
+
 const AppContent: React.FC = () => {
   const [hasPermission, requestPermission] = useCameraPermissions();
-  const [isPreviewVisible, setIsPreviewVisible] = useState(true);
   const [showSummary, setShowSummary] = useState(false);
   const [tripDuration, setTripDuration] = useState(0);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [infractionSummary, setInfractionSummary] = useState<Record<DetectionType, number>>(
     Object.fromEntries(Object.values(DetectionType).map(t => [t, 0])) as Record<DetectionType, number>
   );
-  const cameraRef = useRef<CameraView>(null);
-  const faceDetectorRef = useRef<FaceDetection.FaceDetector | null>(null);
   const { state, startTrip, stopTrip, processDetection, getTripDuration, getInfractionSummary } = useDriver();
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -58,6 +72,10 @@ const AppContent: React.FC = () => {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
     }
+    if (demoInterval) {
+      clearInterval(demoInterval);
+      demoInterval = null;
+    }
 
     try {
       await deactivateKeepAwake();
@@ -70,30 +88,32 @@ const AppContent: React.FC = () => {
     stopTrip();
   }, [stopTrip, getInfractionSummary]);
 
-  const handleFaceDetection = useCallback(async (faces: any[]) => {
+  const handleFaceDetection = useCallback((metrics: any) => {
     if (!state.isMonitoring) return;
-
-    if (faces.length === 0) {
-      return;
-    }
-
-    const face = faces[0];
-    const imageWidth = SCREEN_WIDTH;
-    const imageHeight = SCREEN_HEIGHT;
-
-    const metrics = extractDriverMetrics(face, imageWidth, imageHeight);
     processDetection(metrics);
   }, [state.isMonitoring, processDetection]);
 
+  const startDemoMode = useCallback(() => {
+    setIsDemoMode(true);
+    handleTripStart();
+    demoInterval = setInterval(() => {
+      const metrics = generateDemoMetrics();
+      handleFaceDetection(metrics);
+    }, 500);
+  }, [handleTripStart, handleFaceDetection]);
+
   const handleSummaryClose = useCallback(() => {
     setShowSummary(false);
-    setIsPreviewVisible(true);
+    setIsDemoMode(false);
   }, []);
 
   useEffect(() => {
     return () => {
       if (durationIntervalRef.current) {
         clearInterval(durationIntervalRef.current);
+      }
+      if (demoInterval) {
+        clearInterval(demoInterval);
       }
       deactivateKeepAwake();
     };
@@ -109,6 +129,12 @@ const AppContent: React.FC = () => {
         <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.permissionButton, styles.demoButton]} 
+          onPress={startDemoMode}
+        >
+          <Text style={styles.permissionButtonText}>Try Demo Mode</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -120,11 +146,14 @@ const AppContent: React.FC = () => {
         <Text style={styles.permissionText}>
           Please enable camera access in your device settings to use this app.
         </Text>
-        <TouchableOpacity
-          style={styles.permissionButton}
-          onPress={() => Linking.openSettings()}
-        >
+        <TouchableOpacity style={styles.permissionButton} onPress={() => Linking.openSettings()}>
           <Text style={styles.permissionButtonText}>Open Settings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.permissionButton, styles.demoButton]} 
+          onPress={startDemoMode}
+        >
+          <Text style={styles.permissionButtonText}>Try Demo Mode</Text>
         </TouchableOpacity>
       </View>
     );
@@ -159,13 +188,10 @@ const AppContent: React.FC = () => {
 
         <TouchableOpacity
           style={styles.startButton}
-          onPress={() => {
-            setIsPreviewVisible(true);
-            handleTripStart();
-          }}
+          onPress={startDemoMode}
           activeOpacity={0.8}
         >
-          <Text style={styles.startButtonText}>START TRIP</Text>
+          <Text style={styles.startButtonText}>START TRIP (DEMO)</Text>
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
@@ -177,25 +203,13 @@ const AppContent: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <CameraView
-        ref={cameraRef}
-        style={styles.camera}
-        facing="front"
-        onFacesDetected={(data) => handleFaceDetection(data.faces)}
-      >
-        <FaceDetection.FaceDetector
-          options={{
-            performanceMode: 'accurate',
-            landmarkMode: 'all',
-            contourMode: 'all',
-            classificationMode: 'all',
-          }}
-        >
-          <View style={styles.overlay}>
-            <SafetyDashboard onStopTrip={handleTripStop} />
-          </View>
-        </FaceDetection.FaceDetector>
-      </CameraView>
+      <View style={styles.cameraPlaceholder}>
+        <Text style={styles.demoText}>🔍 Camera Active - Monitoring...</Text>
+        <Text style={styles.demoSubtext}>Demo mode with simulated data</Text>
+      </View>
+      <View style={styles.overlay}>
+        <SafetyDashboard onStopTrip={handleTripStop} />
+      </View>
     </View>
   );
 };
@@ -220,8 +234,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
-  camera: {
+  cameraPlaceholder: {
     flex: 1,
+    backgroundColor: '#1a1a2e',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  demoText: {
+    fontSize: 20,
+    color: '#3b82f6',
+    fontWeight: 'bold',
+  },
+  demoSubtext: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 8,
   },
   overlay: {
     flex: 1,
@@ -322,6 +349,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 32,
+    marginBottom: 16,
+  },
+  demoButton: {
+    backgroundColor: '#10b981',
   },
   permissionButtonText: {
     fontSize: 16,
