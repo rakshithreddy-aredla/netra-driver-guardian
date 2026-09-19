@@ -3,7 +3,16 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@infinitered/react-native-mlkit-face-detection": "^5.0.0",
     "expo": "~57.0.23",
+    "expo-av": "^16.0.8",
+    "expo-camera": "^57.0.5",
+    "expo-device": "^57.0.2",
+    "expo-file-system": "^57.0.7",
+    "expo-haptics": "^57.0.3",
+    "expo-keep-awake": "^57.0.2",
+    "expo-screen-orientation": "^57.0.2",
+    "expo-speech": "^57.0.3",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3"
